@@ -46,8 +46,6 @@ module.exports = {
 ### Usage
 
 1. Compile Contracts
-
-
 `npx hardhat clean
 npx hardhat compile`
 
