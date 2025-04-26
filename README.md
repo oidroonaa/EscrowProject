@@ -46,17 +46,19 @@ module.exports = {
 ### Usage
 
 1. Compile Contracts
+
+
 `npx hardhat clean
 npx hardhat compile`
 
-2. Run Tests
+3. Run Tests
 `npx hardhat test`
 
-3. Deploy Contract
+4. Deploy Contract
 `npx hardhat run scripts/deploy.js --network sepolia`
 Save the deployed address from the console.
 
-4. Verify on Etherscan (requires ETHERSCAN_API_KEY):
+5. Verify on Etherscan (requires ETHERSCAN_API_KEY):
 `npx hardhat verify --network sepolia <DEPLOYED_ADDRESS>`
 If your constructor had arguments, list them after the address.
 
