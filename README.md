@@ -16,29 +16,29 @@ This project implements a smart contract that manages freelance job agreements. 
 
 1. Clone the repository
 2. Install dependencies
-'npm install'
+`npm install`
 
 ### Usage
 
 1. Compile Contracts
-'npx hardhat compile'
+`npx hardhat compile`
 
 2. Run Tests
-'npx hardhat test'
+`npx hardhat test`
 
 3. Deploy Contract
-'npx hardhat run scripts/deploy.js --network hardhat'
+`npx hardhat run scripts/deploy.js --network hardhat`
 Save the deployed contract address (e.g., 0x5FbDB2315678afecb367f032d93F642f64180aa3)
 
 ### Demo Flow
 
 1. Start a local Hardhat node:
-'npx hardhat node'
+`npx hardhat node`
 2. In a new terminal, run the demo script with the deployed contract address:
-'npx hardhat run scripts/demo.js --network localhost [CONTRACT_ADDRESS]'
+`npx hardhat run scripts/demo.js --network localhost [CONTRACT_ADDRESS]`
 
 Example:
-'npx hardhat run scripts/demo.js --network localhost 0x5FbDB2315678afecb367f032d93F642f64180aa3'
+`npx hardhat run scripts/demo.js --network localhost 0x5FbDB2315678afecb367f032d93F642f64180aa3`
 
 ### Contributing
 
@@ -47,4 +47,4 @@ Pull requests are welcome. For major changes, open an issue first.
 ### License
 
 MIT
-This README provides a comprehensive guide to setup, test, and interact with the contract. The actual Solidity code is inferred from the tests and scripts but would need to be included in the repository for full functionality.
+`This README provides a comprehensive guide to setup, test, and interact with the contract. The actual Solidity code is inferred from the tests and scripts but would need to be included in the repository for full functionality.`
