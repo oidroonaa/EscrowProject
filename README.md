@@ -40,11 +40,11 @@ Save the deployed contract address (e.g., 0x5FbDB2315678afecb367f032d93F642f6418
 Example:
 `npx hardhat run scripts/demo.js --network localhost 0x5FbDB2315678afecb367f032d93F642f64180aa3`
 
-### Contributing
+### Contributors
 
-Pull requests are welcome. For major changes, open an issue first.
+Author: Aidana Medetova
+Email: aidanam@connect.hku.hk
 
 ### License
 
-MIT
-`This README provides a comprehensive guide to setup, test, and interact with the contract. The actual Solidity code is inferred from the tests and scripts but would need to be included in the repository for full functionality.`
+2025 © The University of Hong Kong
