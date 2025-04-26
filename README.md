@@ -15,30 +15,72 @@ This project implements a smart contract that manages freelance job agreements. 
 ### Installation
 
 1. Clone the repository
-2. Install dependencies
+`cd EscrowProject`
+3. Install dependencies
 `npm install`
+
+### Configuration
+
+1. Create a .env file in the project root
+`# .env
+PRIVATE_KEY=<your_testnet_account_private_key>
+SEPOLIA_RPC_URL=<https://eth-sepolia.alchemy.com/v2/yourKey>
+ETHERSCAN_API_KEY=<yourEtherscanApiKey>  # optional, for verification`
+2. Hardhat configuration
+`require("dotenv").config();
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-ethers");
+
+module.exports = {
+  solidity: "0.8.20",
+  defaultNetwork: "sepolia",
+  networks: {
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+  },
+};`
+
 
 ### Usage
 
 1. Compile Contracts
-`npx hardhat compile`
+`npx hardhat clean
+npx hardhat compile`
 
 2. Run Tests
 `npx hardhat test`
 
 3. Deploy Contract
-`npx hardhat run scripts/deploy.js --network hardhat`
-Save the deployed contract address (e.g., 0x5FbDB2315678afecb367f032d93F642f64180aa3)
+`npx hardhat run scripts/deploy.js --network sepolia`
+Save the deployed address from the console.
 
-### Demo Flow
+4. Verify on Etherscan (requires ETHERSCAN_API_KEY):
+`npx hardhat verify --network sepolia <DEPLOYED_ADDRESS>`
+If your constructor had arguments, list them after the address.
 
-1. Start a local Hardhat node:
+### Demo Script
+
+1. Interact with the deployed contract end‑to‑end on a testnet:
+`npm run demo -- <DEPLOYED_ADDRESS>`
+
+This will:
+1. Post a job
+2. Accept, submit, and confirm completion of job 0
+3. Post + dispute job 1
+4. Arbitrator staking & votes
+5. Show dispute resolution
+
+#### Local Development
+
+1. Start a local network in one terminal:
 `npx hardhat node`
-2. In a new terminal, run the demo script with the deployed contract address:
+2. Deploy your contracts locally
+`npx hardhat run scripts/deploy.js --network localhost`
+Copy the printed address
+4. In a new terminal, run the demo script against localhost with the deployed contract address:
 `npx hardhat run scripts/demo.js --network localhost [CONTRACT_ADDRESS]`
-
-Example:
-`npx hardhat run scripts/demo.js --network localhost 0x5FbDB2315678afecb367f032d93F642f64180aa3`
 
 ### Contributors
 
