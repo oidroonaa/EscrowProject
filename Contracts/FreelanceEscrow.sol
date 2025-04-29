@@ -29,6 +29,8 @@ contract FreelanceEscrow is
         State state;
         uint256 clientVotes;
         uint256 freelancerVotes;
+        uint256 acceptTimestamp; 
+        uint256 disputeTimestamp;
     }
 
     // Storage
@@ -42,12 +44,16 @@ contract FreelanceEscrow is
 
     // Events
     event JobPosted(uint256 indexed jobId, address indexed client, uint256 amount);
+    event JobWithdrawn(uint256 indexed jobId, address indexed client);
     event JobAccepted(uint256 indexed jobId, address indexed freelancer);
     event WorkSubmitted(uint256 indexed jobId);
+    event JobCancelled(uint256 indexed jobId, address indexed caller);
     event JobCompleted(uint256 indexed jobId);
+    event JobDeleted(uint256 indexed jobId);
     event DisputeRaised(uint256 indexed jobId);
     event Voted(uint256 indexed jobId, address indexed arbitrator, bool clientWins);
     event DisputeResolved(uint256 indexed jobId, address indexed winner);
+    event DisputeExpired(uint256 indexed jobId);
     event Staked(address indexed arbitrator, uint256 amount);
     event Unstaked(address indexed arbitrator, uint256 amount);
 
@@ -57,12 +63,36 @@ contract FreelanceEscrow is
         _grantRole(ARBITRATOR_ROLE, msg.sender);
     }
 
+    uint256 public constant MAX_VOTERS = 10;
+
     /// @notice Client posts a job by depositing ETH
     function postJob() external payable override returns (uint256 jobId) {
         require(msg.value > 0, "Must fund job");
         jobId = nextJobId++;
-        jobs[jobId] = Job(msg.sender, address(0), msg.value, State.Posted, 0, 0);
+        jobs[jobId] = Job({
+            client: msg.sender,
+            freelancer: address(0),
+            amount: msg.value,
+            state: State.Posted,
+            clientVotes: 0,
+            freelancerVotes: 0,
+            acceptTimestamp: 0,
+            disputeTimestamp: 0
+        });
+
         emit JobPosted(jobId, msg.sender, msg.value);
+    }
+
+    /// @notice Client can cancel a job before anyone accepts it
+    function withdrawJob(uint256 jobId) external nonReentrant {
+        Job storage j = jobs[jobId];
+        require(j.client == msg.sender, "Not your job");
+        require(j.state == State.Posted, "Already taken");
+        j.state = State.Resolved;
+        uint256 amount = j.amount;
+        j.amount = 0;
+        payable(msg.sender).pullPayment(amount);
+        emit JobWithdrawn(jobId, msg.sender);
     }
 
     /// @notice Freelancer accepts the job
@@ -71,8 +101,30 @@ contract FreelanceEscrow is
         require(j.client != address(0), "Job does not exist");
         require(j.state == State.Posted, "Not open");
         j.freelancer = msg.sender;
+        j.acceptTimestamp = block.timestamp;
         j.state = State.Accepted;
         emit JobAccepted(jobId, msg.sender);
+    }
+
+    uint256 public constant SUBMIT_WINDOW = 7 days;
+
+    function cancelAfterAccept(uint256 jobId) external nonReentrant {
+        Job storage j = jobs[jobId];
+        require(block.timestamp >= j.acceptTimestamp + SUBMIT_WINDOW, "Too early to cancel");
+        require(j.client == msg.sender, "Only client");
+        require(j.state == State.Accepted, "Not accepted");
+        require(block.timestamp >= j.acceptTimestamp + SUBMIT_WINDOW,
+                "Too early to cancel");
+        
+        // Mark resolved and refund client
+        j.state = State.Resolved;
+        uint256 amt = j.amount;
+        j.amount = 0;
+        payable(j.client).pullPayment(amt);
+
+    
+        emit JobCancelled(jobId, msg.sender);
+        emit JobDeleted(jobId);
     }
 
     /// @notice Freelancer submits work
@@ -98,6 +150,20 @@ contract FreelanceEscrow is
         emit JobCompleted(jobId);
     }
 
+    uint256 public constant AUTO_COMPLETE_DELAY = 3 days;
+
+    /// @notice Freelancer can auto-complete if client doesn’t confirm in time
+    function autoConfirm(uint256 jobId) external nonReentrant {
+        Job storage j = jobs[jobId];
+        require(j.freelancer == msg.sender, "Only freelancer");
+        require(j.state == State.Submitted, "Not submitted");
+        require(block.timestamp >= j.acceptTimestamp + AUTO_COMPLETE_DELAY,
+                "Too early");
+        j.state = State.Completed;
+        payable(j.freelancer).pullPayment(j.amount);
+        emit JobCompleted(jobId);
+    }
+
     /// @notice Raise a dispute on a submitted job
     function raiseDispute(uint256 jobId) external override {
         Job storage j = jobs[jobId];
@@ -108,6 +174,7 @@ contract FreelanceEscrow is
             "Forbidden"
         );
         j.state = State.Disputed;
+        j.disputeTimestamp = block.timestamp;
         emit DisputeRaised(jobId);
     }
 
@@ -120,18 +187,29 @@ contract FreelanceEscrow is
         voteDispute(jobId, clientWins);
     }
 
+    mapping(address => uint256) public stakeTimestamp;
+
     /// @notice Arbitrator stakes ETH to participate
     function stake() external payable {
         require(msg.value >= REQUIRED_STAKE, "Must stake >= 1 ETH");
         arbitratorStakes[msg.sender] += msg.value;
+        stakeTimestamp[msg.sender] = block.timestamp;
         emit Staked(msg.sender, msg.value);
     }
 
     /// @notice Arbitrator withdraws their stake
     function unstake(uint256 amount) external nonReentrant {
         uint256 availableStake = arbitratorStakes[msg.sender] - lockedStakes[msg.sender];
-        require(availableStake >= amount, "Insufficient available stake");
+        require(
+            availableStake >= amount,
+            "Insufficient available stake"
+        );
         arbitratorStakes[msg.sender] -= amount;
+        uint256 total = arbitratorStakes[msg.sender];
+        uint256 locked = lockedStakes[msg.sender];
+        require(total - locked >= amount, "Insufficient available stake");
+
+        arbitratorStakes[msg.sender] = total - amount;
         payable(msg.sender).pullPayment(amount);
         emit Unstaked(msg.sender, amount);
     }
@@ -143,6 +221,21 @@ contract FreelanceEscrow is
         nonReentrant
     {
         Job storage j = jobs[jobId];
+        require(j.state == State.Disputed, "No dispute");
+        require(voters[jobId].length < MAX_VOTERS, "Too many voters");
+
+        require(
+            msg.sender != j.client && msg.sender != j.freelancer,
+            "Client/freelancer cannot vote"
+        );
+
+        require(
+            block.timestamp >= stakeTimestamp[msg.sender] + 1 hours,
+            "Must wait after staking"
+        );
+
+
+
         require(j.client != address(0), "Job does not exist");
         require(j.state == State.Disputed, "No dispute");
         require(!hasVoted[jobId][msg.sender], "Already voted");
@@ -167,6 +260,25 @@ contract FreelanceEscrow is
         }
     }
 
+    uint256 public constant DISPUTE_WINDOW = 2 days;
+
+    function resolveOverdue(uint256 jobId) external nonReentrant {
+        Job storage j = jobs[jobId];
+        require(j.state == State.Disputed, "Not in dispute");
+        require(block.timestamp >= j.disputeTimestamp + DISPUTE_WINDOW,
+                "Too early");
+        // Return all locked stakes to voters
+        address[] memory voterList = voters[jobId];
+        for (uint i; i < voterList.length; i++) {
+            address v = voterList[i];
+            lockedStakes[v] -= REQUIRED_STAKE;
+            payable(v).pullPayment(REQUIRED_STAKE);
+        }
+        delete voters[jobId];
+        j.state = State.Resolved;
+        emit DisputeExpired(jobId);
+    }
+
     /// @dev Internal dispute resolution
     function _resolveDispute(uint256 jobId) internal {
         Job storage j = jobs[jobId];
@@ -176,21 +288,45 @@ contract FreelanceEscrow is
         j.state = State.Resolved;
         address[] memory voterList = voters[jobId];
 
-        // Slash losing stakes and unlock
-        for (uint256 i; i < voterList.length; i++) {
-            address voter = voterList[i];
-            lockedStakes[voter] -= REQUIRED_STAKE;
-            if (voteChoice[jobId][voter] != clientWins) {
-                arbitratorStakes[voter] -= REQUIRED_STAKE;
-                payable(winner).pullPayment(REQUIRED_STAKE);
+        uint256 slashPool = 0;
+        for (uint i; i < voterList.length; i++) {
+            address v = voterList[i];
+            lockedStakes[v] -= REQUIRED_STAKE;
+
+            if (voteChoice[jobId][v] != clientWins) {
+                arbitratorStakes[v] -= REQUIRED_STAKE;
+                slashPool += REQUIRED_STAKE;
             }
         }
-        delete voters[jobId];
 
-        // Release escrow amount
+        uint256 honestCount = clientWins ? j.clientVotes : j.freelancerVotes;
+        for (uint i = 0; i < voterList.length; i++) {
+            address v = voterList[i];
+            if (voteChoice[jobId][v] == clientWins) {
+                payable(v).pullPayment(REQUIRED_STAKE);
+            }
+        }
+
+        if (honestCount > 0 && slashPool > 0) {
+            uint256 bonus = slashPool / honestCount;
+            uint256 remainder = slashPool % honestCount;
+            for (uint i = 0; i < voterList.length; i++) {
+                address v = voterList[i];
+                if (voteChoice[jobId][v] == clientWins) {
+                    uint256 payout = bonus;
+                    if ( i == voterList.length - 1) {
+                        payout += remainder;
+                    }
+                    payable(v).pullPayment(bonus);
+                }
+            }
+        }
+
+
         payable(winner).pullPayment(j.amount);
         emit DisputeResolved(jobId, winner);
-    }
+        emit JobDeleted(jobId);
+        }
 
         /// @notice Admin grants arbitrator role to an account
     function grantArbitratorRole(address account)
@@ -199,7 +335,6 @@ contract FreelanceEscrow is
     {
         grantRole(ARBITRATOR_ROLE, account);
     }
-
 
     /// @notice Accept direct ETH transfers (ignored)
     receive() external payable {}
