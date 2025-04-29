@@ -6,7 +6,9 @@ require("@nomiclabs/hardhat-ethers");
 module.exports = {
   solidity: "0.8.20",
   defaultNetwork: "sepolia",
+  defaultNetwork: "hardhat",
   networks: {
+    hardhat: {},
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
