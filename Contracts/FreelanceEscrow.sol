@@ -303,6 +303,7 @@ contract FreelanceEscrow is
         for (uint i = 0; i < voterList.length; i++) {
             address v = voterList[i];
             if (voteChoice[jobId][v] == clientWins) {
+                arbitratorStakes[v] -= REQUIRED_STAKE;
                 payable(v).pullPayment(REQUIRED_STAKE);
             }
         }
@@ -310,14 +311,17 @@ contract FreelanceEscrow is
         if (honestCount > 0 && slashPool > 0) {
             uint256 bonus = slashPool / honestCount;
             uint256 remainder = slashPool % honestCount;
+            uint256 honestPaid = 0;
+
             for (uint i = 0; i < voterList.length; i++) {
                 address v = voterList[i];
                 if (voteChoice[jobId][v] == clientWins) {
                     uint256 payout = bonus;
-                    if ( i == voterList.length - 1) {
-                        payout += remainder;
+                    if (honestPaid == honestCount - 1) {
+                    payout += remainder;
                     }
                     payable(v).pullPayment(bonus);
+                    honestPaid++;
                 }
             }
         }
@@ -325,7 +329,7 @@ contract FreelanceEscrow is
 
         payable(winner).pullPayment(j.amount);
         emit DisputeResolved(jobId, winner);
-        emit JobDeleted(jobId);
+        delete voters[jobId];
         }
 
         /// @notice Admin grants arbitrator role to an account
