@@ -146,6 +146,19 @@ _If your constructor takes arguments, list them after the address._
 
 ---
 
+## References 
+
+IEEE S&P
+"Compositional Security for Reentrant Applications" (2021) 10.
+"SoK: Prudent Evaluation Practices for Fuzzing" (2024) 10.
+NDSS
+"Security and Privacy for Blockchains" (2025 workshop) 7.
+"Security for Large-Scale Critical Infrastructures" (2025) 7.
+USENIX Security
+"Not Yet Another Digital ID" (2023) 10.
+Springer Surveys
+"Blockchain for Securing Electronic Voting Systems" (2025) 9.
+
 ## 👤 Contributors & License
 
 **Author:** Aidana Medetova  
