@@ -125,7 +125,7 @@ For rapid iteration, use a local Hardhat network:
    ```
 3. Copy the printed local address and run the demo:
    ```bash
-   npx hardhat run scripts/demo.js --network localhost <LOCAL_ADDRESS>
+   HARDHAT_NETWORK=localhost node scripts/demo.js <LOCAL_ADDRESS>
    ```
 
 ---
@@ -134,8 +134,12 @@ For rapid iteration, use a local Hardhat network:
 
 Once deployed, verify on Etherscan (requires `ETHERSCAN_API_KEY`):
 
+You need to input your own Etherscan_API_Key in the .env file
+
 ```bash
-npx hardhat verify --network sepolia <DEPLOYED_ADDRESS>
+npx hardhat verify \
+  --network sepolia \
+<Contract_Address>
 ```
 
 _If your constructor takes arguments, list them after the address._
