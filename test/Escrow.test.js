@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers, network } = require("hardhat");
 
 describe("FreelanceEscrow Contract", function () {
   let escrow;
@@ -17,6 +17,14 @@ describe("FreelanceEscrow Contract", function () {
     await escrow.grantArbitratorRole(arb1.address);
     await escrow.grantArbitratorRole(arb2.address);
     await escrow.grantArbitratorRole(arb3.address);
+    await escrow.connect(arb1).stake({ value: ONE_ETH });
+    await escrow.connect(arb2).stake({ value: ONE_ETH });
+    await escrow.connect(arb3).stake({ value: ONE_ETH });
+  
+    // *** fast-forward 1 hour ***
+    await network.provider.send("evm_increaseTime", [3600]);
+    await network.provider.send("evm_mine");
+
   });
 
   it("allows a client to post a job with ETH", async () => {
