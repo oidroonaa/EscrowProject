@@ -1,6 +1,6 @@
 # 📑 Freelance Escrow Smart Contract
 
-A decentralized on-chain escrow system for freelancers and clients, enabling secure job postings, fund escrow, timeouts, and trustless dispute resolution via staked arbitrators.
+A decentralized on-chain escrow platform where clients post jobs and lock up funds, freelancers deliver work under enforced deadlines, and staked arbitrators handle trustless dispute resolution.
 
 ---
 
