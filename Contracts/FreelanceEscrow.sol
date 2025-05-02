@@ -31,6 +31,9 @@ contract FreelanceEscrow is
         uint256 freelancerVotes;
         uint256 acceptTimestamp; 
         uint256 disputeTimestamp;
+        bytes32 evidenceHash;
+        string evidenceURI;
+        uint256 evidenceDeadline;
     }
 
     // Storage
@@ -50,6 +53,7 @@ contract FreelanceEscrow is
     event JobCancelled(uint256 indexed jobId, address indexed caller);
     event JobCompleted(uint256 indexed jobId);
     event JobDeleted(uint256 indexed jobId);
+    event EvidenceSubmitted(uint256 indexed jobId, bytes32 evidenceHash, string evidenceURI);
     event DisputeRaised(uint256 indexed jobId);
     event Voted(uint256 indexed jobId, address indexed arbitrator, bool clientWins);
     event DisputeResolved(uint256 indexed jobId, address indexed winner);
@@ -77,7 +81,10 @@ contract FreelanceEscrow is
             clientVotes: 0,
             freelancerVotes: 0,
             acceptTimestamp: 0,
-            disputeTimestamp: 0
+            disputeTimestamp: 0,
+            evidenceHash: bytes32(0),
+            evidenceURI: "",
+            evidenceDeadline: 0
         });
 
         emit JobPosted(jobId, msg.sender, msg.value);
@@ -164,6 +171,41 @@ contract FreelanceEscrow is
         emit JobCompleted(jobId);
     }
 
+    /// @notice Read the evidence hash + URI for a disputed job
+    function getEvidence(uint256 jobId)
+        external
+        view
+        returns (bytes32 evidenceHash, string memory evidenceURI)
+    {
+        Job storage j = jobs[jobId];
+        return (j.evidenceHash, j.evidenceURI);
+    }
+
+    /// @notice Upload your evidence hash+URI before the deadline
+    function submitEvidence(
+        uint256 jobId,
+        bytes32 evidenceHash,
+        string calldata evidenceURI
+    ) external {
+        Job storage j = jobs[jobId];
+
+    // only the two parties can supply evidence, and only once per dispute
+        require(
+            msg.sender == j.client || msg.sender == j.freelancer,
+            "Only client or freelancer"
+        );
+        require(j.state == State.Disputed, "Not in dispute");
+        // enforce a deadline
+        require(
+            block.timestamp <= j.evidenceDeadline,
+            "Evidence deadline passed"
+    );
+        // store the data
+        j.evidenceHash = evidenceHash;
+        j.evidenceURI  = evidenceURI;
+        emit EvidenceSubmitted(jobId, evidenceHash, evidenceURI);
+    }
+
     /// @notice Raise a dispute on a submitted job
     function raiseDispute(uint256 jobId) external override {
         Job storage j = jobs[jobId];
@@ -175,6 +217,7 @@ contract FreelanceEscrow is
         );
         j.state = State.Disputed;
         j.disputeTimestamp = block.timestamp;
+        j.evidenceDeadline = block.timestamp + 2 days;
         emit DisputeRaised(jobId);
     }
 
@@ -221,6 +264,7 @@ contract FreelanceEscrow is
         nonReentrant
     {
         Job storage j = jobs[jobId];
+        require(j.evidenceHash != bytes32(0), "No evidence on-chain");
         require(j.state == State.Disputed, "No dispute");
         require(voters[jobId].length < MAX_VOTERS, "Too many voters");
 
