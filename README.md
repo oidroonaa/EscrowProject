@@ -186,11 +186,14 @@ _If your constructor takes arguments, list them after the address._
 **IEEE S&P**
 “Compositional Security for Reentrant Applications” (2021)
 "SoK: Prudent Evaluation Practices for Fuzzing" (2024)
+
 **NDSS**
 “Security and Privacy for Blockchains” (2025 workshop)
 "Security for Large-Scale Critical Infrastructures" (2025)
+
 **USENIX Security**
 “Not Yet Another Digital ID” (2023)
+
 **Springer Surveys**
 “Blockchain for Securing Electronic Voting” (2025)
 
