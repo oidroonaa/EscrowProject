@@ -1,16 +1,39 @@
 # 📑 Freelance Escrow Smart Contract
 
-A decentralized escrow system for freelancers and clients, enabling secure job postings, fund escrow, and trustless dispute resolution via staked arbitrators.
+A decentralized on-chain escrow system for freelancers and clients, enabling secure job postings, fund escrow, timeouts, and trustless dispute resolution via staked arbitrators.
 
 ---
 
 ## 🌟 Project Features
 
-This project implements a smart contract that manages freelance job agreements. Clients post jobs with escrowed funds, freelancers submit work, and disputes are resolved by staked arbitrators. Key features:
+This project implements a smart contract that manages freelance job agreements. Clients post jobs with escrowed funds, freelancers submit work, and disputes are resolved by staked arbitrators.
 
-- **Job Lifecycle Management**: Post, accept, submit, and confirm jobs.
-- **Dispute Resolution**: Multi-signature voting by arbitrators.
-- **Security**: Reentrancy protection, access control, and safe ETH transfers.
+- **Job Lifecycle**  
+  - `postJob()` → escrow your ETH  
+  - `acceptJob()` → freelancer locks in  
+  - `submitWork()` → deliver off-chain proof  
+  - `confirmCompletion()` / `autoConfirm()` → release funds  
+
+- **Cancellation & Timeouts**  
+  - `withdrawJob()` → client cancels before acceptance  
+  - `cancelAfterAccept()` → client cancels after deadline if no submission  
+  - `autoConfirm()` → freelancer completes if client forgets after `AUTO_COMPLETE_DELAY`  
+  - `resolveOverdue()` → voters reclaim stakes if dispute stalls past `DISPUTE_WINDOW`
+
+- **Staked Arbitration**  
+  - `stake()` / `unstake()` → arbitrators lock ETH  
+  - 1 h cooldown after staking before voting  
+  - Cap of `MAX_VOTERS` per dispute
+
+- **Evidence Submission**  
+  - `submitEvidence(jobId, hash, uri)` → store 32-byte hash + off-chain URI  
+  - Voters must see `evidenceHash` before `voteDispute()`
+
+- **Dispute Resolution**  
+  - `voteDispute()` → tally to `VOTE_THRESHOLD`  
+  - Honest voters refunded + share of slashed stakes  
+  - Winner receives escrow
+
 
 ## ⚙️ Installation
 
@@ -51,19 +74,26 @@ npm install
     require("dotenv").config();
     require("@nomiclabs/hardhat-waffle");
     require("@nomiclabs/hardhat-ethers");
-    require("@nomiclabs/hardhat-etherscan");
-
+    require("@nomicfoundation/hardhat-verify");
+    
     module.exports = {
       defaultNetwork: "sepolia",
-      solidity: "0.8.20",
+      solidity: {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 200 } }
+      },
       networks: {
         sepolia: {
           url: process.env.SEPOLIA_RPC_URL,
           accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+          gasPrice: 10_000_000_000
         },
+        localhost: {
+          url: "http://127.0.0.1:8545"
+        }
       },
       etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.ETHERSCAN_API_KEY
       }
     };
     ```
@@ -71,6 +101,8 @@ npm install
 ---
 
 ## 🎯 Compile & Test
+
+All tests should pass, including evidence-based dispute flows.
 
 ```bash
 # Clean previous artifacts and compile contracts
@@ -85,12 +117,13 @@ npx hardhat test
 
 ## 🚀 Deployment
 
+1. Fund your account via a faucet(≥ 0.1 ETH).
+
+2. Deploy to Sepolia
 ```bash
-# Deploy to Sepolia
 npx hardhat run scripts/deploy.js --network sepolia
 ```
-
-_Save the printed contract address for the next steps._
+3. Save the printed contracts address for verification & demo
 
 ---
 
@@ -103,11 +136,13 @@ npm run demo -- <DEPLOYED_ADDRESS>
 ```
 
 This script will:
-1. Post job 0 (escrow 1 ETH)
-2. Accept, submit, and confirm completion of job 0
-3. Post job 1 and raise a dispute
-4. Stake and vote with three arbitrators
-5. Resolve and distribute funds
+1. Job 0 – post, accept, submit, confirm
+2. Job 1 – post, accept, submit, raise dispute
+3. Evidence – submit on-chain hash+URI
+4. Arbitration setup – grant roles & stake
+5. Cooldown – fast-forward block timestamp by 1 hour
+6. Voting – three arbitrators cast votes
+7. Resolution – dispute automatically resolves when threshold is met
 
 ---
 
@@ -148,16 +183,16 @@ _If your constructor takes arguments, list them after the address._
 
 ## References 
 
-IEEE S&P
-"Compositional Security for Reentrant Applications" (2021) 10.
-"SoK: Prudent Evaluation Practices for Fuzzing" (2024) 10.
-NDSS
-"Security and Privacy for Blockchains" (2025 workshop) 7.
-"Security for Large-Scale Critical Infrastructures" (2025) 7.
-USENIX Security
-"Not Yet Another Digital ID" (2023) 10.
-Springer Surveys
-"Blockchain for Securing Electronic Voting Systems" (2025) 9.
+**IEEE S&P**
+“Compositional Security for Reentrant Applications” (2021)
+"SoK: Prudent Evaluation Practices for Fuzzing" (2024)
+**NDSS**
+“Security and Privacy for Blockchains” (2025 workshop)
+"Security for Large-Scale Critical Infrastructures" (2025)
+**USENIX Security**
+“Not Yet Another Digital ID” (2023)
+**Springer Surveys**
+“Blockchain for Securing Electronic Voting” (2025)
 
 ## 👤 Contributors & License
 
